@@ -1,17 +1,18 @@
 #include "common.h"
 #include "DiscordRPC.h"
 #include "../../vendor/discord-rpc/header/discord_rpc.h"
-#include "PlayerInfo.h"
-#include "PlayerPed.h"
 #include "World.h"
+#include "PlayerPed.h"
+#include "PlayerInfo.h"
 #include "Wanted.h"
 #include "Timer.h"
+#include "Vehicle.h"
 #include <time.h>
 #include <stdio.h>
 #include <string.h>
 
-#define DISCORD_APP_ID "464434670646460427"
-#define DISCORD_UPDATE_INTERVAL 5000
+#define DISCORD_APP_ID "1451455359335141526"
+#define DISCORD_UPDATE_INTERVAL 2000
 #define LARGE_IMAGE_KEY "rpc-image"
 #define SMALL_IMAGE_KEY "money-icon"
 
@@ -74,6 +75,17 @@ CDiscordRPC::Initialize(void)
 	ms_bInitialized = true;
 
 	printf("Discord RPC: Initialized\n");
+	
+	DiscordRichPresence initialPresence;
+	memset(&initialPresence, 0, sizeof(initialPresence));
+	initialPresence.state = "Starting game...";
+	initialPresence.details = "Loading Liberty City";
+	initialPresence.startTimestamp = ms_nStartTimestamp;
+	initialPresence.largeImageKey = LARGE_IMAGE_KEY;
+	initialPresence.largeImageText = "RE III";
+	Discord_UpdatePresence(&initialPresence);
+	
+	Discord_RunCallbacks();
 }
 
 void
@@ -96,9 +108,18 @@ CDiscordRPC::Update(void)
 	if(!ms_bInitialized || !ms_bEnabled)
 		return;
 
+	//always run callbacks to maintain connection
 	Discord_RunCallbacks();
 
 	uint32 currentTime = CTimer::GetTimeInMilliseconds();
+	
+	//force first update immediately after init
+	if(ms_nLastUpdateTime == 0) {
+		ms_nLastUpdateTime = currentTime;
+		UpdatePresenceData();
+		return;
+	}
+	
 	if(currentTime - ms_nLastUpdateTime < DISCORD_UPDATE_INTERVAL)
 		return;
 
@@ -110,44 +131,57 @@ void
 CDiscordRPC::UpdatePresenceData(void)
 {
 	CPlayerPed* player = FindPlayerPed();
-	if(!player)
+	
+	// Build presence struct
+	DiscordRichPresence presence;
+	memset(&presence, 0, sizeof(presence));
+	
+	if(!player) {
+		// Menu state
+		presence.state = "In Menu";
+		presence.details = "Starting game...";
+		presence.startTimestamp = ms_nStartTimestamp;
+		presence.largeImageKey = LARGE_IMAGE_KEY;
+		presence.largeImageText = "GTA III";
+		Discord_UpdatePresence(&presence);
 		return;
+	}
 
 	CPlayerInfo* playerInfo = &CWorld::Players[CWorld::PlayerInFocus];
 	int32 health = (int32)player->m_fHealth;
 	int32 money = playerInfo->m_nMoney;
 	int32 wantedLevel = playerInfo->m_pPed->m_pWanted->GetWantedLevel();
 
-	bool needsUpdate = false;
+	//update cache
+	ms_nLastHealth = health;
+	ms_nLastMoney = money;
+	ms_nLastWantedLevel = wantedLevel;
 
-	if(health != ms_nLastHealth || money != ms_nLastMoney || wantedLevel != ms_nLastWantedLevel) {
-		needsUpdate = true;
-		ms_nLastHealth = health;
-		ms_nLastMoney = money;
-		ms_nLastWantedLevel = wantedLevel;
-	}
-
-	if(!needsUpdate && ms_nLastUpdateTime > DISCORD_UPDATE_INTERVAL)
-		return;
-
+	//build state and details
 	GetPlayerState(ms_aStateBuffer, sizeof(ms_aStateBuffer));
 	GetPlayerDetails(ms_aDetailsBuffer, sizeof(ms_aDetailsBuffer));
 	GetHealthText(ms_aLargeImageTextBuffer, sizeof(ms_aLargeImageTextBuffer), health);
 	GetMoneyText(ms_aSmallImageTextBuffer, sizeof(ms_aSmallImageTextBuffer), money);
 
-	DiscordRichPresence presence;
-	memset(&presence, 0, sizeof(presence));
-
+	//set all required fields
 	presence.state = ms_aStateBuffer;
 	presence.details = ms_aDetailsBuffer;
 	presence.startTimestamp = ms_nStartTimestamp;
 	presence.largeImageKey = LARGE_IMAGE_KEY;
 	presence.largeImageText = ms_aLargeImageTextBuffer;
-	presence.smallImageKey = SMALL_IMAGE_KEY;
-	presence.smallImageText = ms_aSmallImageTextBuffer;
-	presence.instance = 0;
+	
+	//only set small image if we have money to show
+	if(money > 0) {
+		presence.smallImageKey = SMALL_IMAGE_KEY;
+		presence.smallImageText = ms_aSmallImageTextBuffer;
+	}
+	
+	presence.instance = 1;
 
 	Discord_UpdatePresence(&presence);
+	
+	//debug output
+	printf("Discord RPC: Presence updated - %s | %s\n", ms_aStateBuffer, ms_aDetailsBuffer);
 }
 
 void

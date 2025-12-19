@@ -1,0 +1,20 @@
+# Discord RPC Library Directory
+
+Place the appropriate Discord RPC library file here based on your platform:
+
+## Windows
+- `discord-rpc.lib` (static library)
+- `discord-rpc.dll` (dynamic library)
+
+## Linux
+- `libdiscord-rpc.so` (shared object)
+
+## macOS
+- `libdiscord-rpc.dylib` (dynamic library)
+
+## Build Instructions
+
+You can obtain the Discord RPC library from:
+https://github.com/discord/discord-rpc
+
+Or build from source following the instructions in the Discord RPC repository.

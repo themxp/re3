@@ -29,10 +29,26 @@ target_link_libraries(${EXECUTABLE} PRIVATE
     Threads::Threads
 )
 
+# Discord RPC library
+if(WIN32)
+    target_link_libraries(${EXECUTABLE} PRIVATE
+        ${PROJECT_SOURCE_DIR}/vendor/discord-rpc/lib/discord-rpc.lib
+    )
+elseif(UNIX AND NOT APPLE)
+    target_link_libraries(${EXECUTABLE} PRIVATE
+        ${PROJECT_SOURCE_DIR}/vendor/discord-rpc/lib/libdiscord-rpc.so
+    )
+elseif(APPLE)
+    target_link_libraries(${EXECUTABLE} PRIVATE
+        ${PROJECT_SOURCE_DIR}/vendor/discord-rpc/lib/libdiscord-rpc.dylib
+    )
+endif()
+
 target_include_directories(${EXECUTABLE}
     PRIVATE
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
         $<BUILD_INTERFACE:${${PROJECT}_INCLUDES}>
+        ${PROJECT_SOURCE_DIR}/vendor/discord-rpc/header
 )
 
 target_compile_definitions(${EXECUTABLE}

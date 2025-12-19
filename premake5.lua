@@ -275,6 +275,7 @@ project "re3"
 	files { addSrcFiles("src/vehicles") }
 	files { addSrcFiles("src/weapons") }
 	files { addSrcFiles("src/extras") }
+	files { addSrcFiles("src/discord-rpc") }
 	if(not _OPTIONS["no-git-hash"]) then
 		files { "src/extras/GitSHA1.cpp" } -- this won't be in repo in first build
 	else
@@ -304,6 +305,8 @@ project "re3"
 	includedirs { "src/vehicles" }
 	includedirs { "src/weapons" }
 	includedirs { "src/extras" }
+	includedirs { "src/discord-rpc" }
+	includedirs { "vendor/discord-rpc/header" }
 
 	if(not _OPTIONS["no-git-hash"]) then
 		defines { "USE_OUR_VERSIONING" }
@@ -347,6 +350,8 @@ project "re3"
 		linkoptions "/SAFESEH:NO"
 		characterset ("MBCS")
 		targetextension ".exe"
+		libdirs { "vendor/discord-rpc/lib" }
+		links { "discord-rpc" }
 		if(_OPTIONS["no-full-paths"]) then
 			usefullpaths "off"
 			linkoptions "/PDBALTPATH:%_PDB%"
@@ -396,13 +401,25 @@ project "re3"
 		libdirs { "vendor/openal-soft/libs/Win64" }
 
 	filter "platforms:linux*oal"
-		links { "openal", "mpg123", "sndfile", "pthread" }
+		links { "openal", "mpg123", "sndfile", "pthread", "discord-rpc" }
+		libdirs { "vendor/discord-rpc/lib" }
+		linkoptions { "-Wl,-rpath='$$ORIGIN'" }
+		linkoptions { "-Wl,-rpath='$$ORIGIN/vendor/discord-rpc/lib'" }
+		postbuildcommands { "{COPY} %{prj.location}/../vendor/discord-rpc/lib/libdiscord-rpc.so %{cfg.buildtarget.directory}" }
 		
 	filter "platforms:bsd*oal"
-		links { "openal", "mpg123", "sndfile", "pthread" }
+		links { "openal", "mpg123", "sndfile", "pthread", "discord-rpc" }
+		libdirs { "vendor/discord-rpc/lib" }
+		linkoptions { "-Wl,-rpath='$$ORIGIN'" }
+		linkoptions { "-Wl,-rpath='$$ORIGIN/vendor/discord-rpc/lib'" }
+		postbuildcommands { "{COPY} %{prj.location}/../vendor/discord-rpc/lib/libdiscord-rpc.so %{cfg.buildtarget.directory}" }
 
 	filter "platforms:macosx*oal"
-		links { "openal", "mpg123", "sndfile", "pthread" }
+		links { "openal", "mpg123", "sndfile", "pthread", "discord-rpc" }
+		libdirs { "vendor/discord-rpc/lib" }
+		linkoptions { "-Wl,-rpath,@executable_path" }
+		linkoptions { "-Wl,-rpath,@executable_path/vendor/discord-rpc/lib" }
+		postbuildcommands { "{COPY} %{prj.location}/../vendor/discord-rpc/lib/libdiscord-rpc.dylib %{cfg.buildtarget.directory}" }
 		
 	filter "platforms:macosx-arm64-*oal"
 		includedirs { "/opt/homebrew/opt/openal-soft/include" }
